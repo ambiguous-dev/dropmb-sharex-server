@@ -40,7 +40,7 @@ app.post("/upload", async (req, res) => {
       body: JSON.stringify({
         id: randomBytes(25).toString("hex"),
         expiration: req.headers["x-expiration"],
-        name: file.name,
+        name: file.name.length > 30 ? `${file.name.slice(0, 27)}...` : file.name,
         recipients: [],
         security: {},
       }),
@@ -84,7 +84,7 @@ app.post("/upload", async (req, res) => {
         continue;
       } else {
         console.log("failed to upload chunks! upload cancled");
-        return res.status(500).send("uploading error");
+        return res.status(500).send(`uploading error: ${JSON.stringify(uploadData)} | ${JSON.stringify(share)}`);
       }
     }
 
