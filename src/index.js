@@ -106,7 +106,7 @@ app.post("/upload", async (req, res) => {
   const rawURL = `https://dropmb.com/api/shares/${share.id}/files/${fileId}?download=false`;
   console.log(`uploaded to ${rawURL}`);
 
-  if (req.headers["x-shortener"]) {
+  if (req.headers["x-shortener-key"]) {
     if (!req.headers["x-shortener-key"]) return res.status(400).send("shortener enabled without key");
     const shortened = await (await fetch("https://api.e-z.host/shortener", {
       headers: {
