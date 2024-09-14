@@ -80,7 +80,7 @@ app.post("/upload", async (req, res) => {
         chunkIndex = uploadData.expectedChunkIndex - 1;
         continue;
       } else {
-        console.log("failed to upload chunks! upload cancled");
+        console.log("failed to upload chunks! upload canceled");
         return res
           .status(500)
           .send(`uploading error: ${JSON.stringify(uploadData)} | ${JSON.stringify(share)}`);
@@ -120,10 +120,10 @@ app.post("/upload", async (req, res) => {
     })).json();
 
     if (req.headers["x-redir-domain"]) {
-      return res.status(200).send(`https://${req.headers["x-redir-domain"]}/${shortened.shortenedUrl.match(/\/([.-\dA-Za-z]+)$/)[1]}`);
+      return res.status(200).send(`https://${req.headers["x-redir-domain"]}/s/${shortened.shortendUrl.match(/\/([.-\dA-Za-z]+)$/)[1]}`);
     }
 
-    return res.status(200).send(shortened.shortenedUrl);
+    return res.status(200).send(shortened.shortendUrl);
   }
 
   return res.status(200).send(rawURL);
