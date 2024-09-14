@@ -17,7 +17,6 @@ app.use(
 app.get("/upload", (req, res) => res.send("need to use post"));
 
 app.post("/upload", async (req, res) => {
-  if (!req.headers["x-access-token"]) req.headers["x-access-token"] = "";
   if (!req.headers["x-expiration"]) return res.status(400).send("no expiration");
   if (!req.files || Object.keys(req.files).length === 0 || !req.files.file)
     return res.status(400).send("no file");
@@ -34,7 +33,7 @@ app.post("/upload", async (req, res) => {
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "en-US,en;q=0.5",
         "Content-Type": "application/json",
-        "Cookie": req.headers["x-access-token"],
+        "Cookie": req.headers["x-access-token"] || "",
       },
       method: "POST",
       body: JSON.stringify({
@@ -56,35 +55,35 @@ app.post("/upload", async (req, res) => {
     console.log(`uploading chunk ${chunkIndex}/${totalChunks}`);
     const from = chunkIndex * CHUNK_SIZE;
 
-    const upload = await (
-      await fetch(
-        `https://dropmb.com/api/shares/${share.id}/files?name=${file.name}${
-          fileId ? `&id=${fileId}` : ""
-        }&chunkIndex=${chunkIndex}&totalChunks=${totalChunks}`,
-        {
-          credentials: "include",
-          headers: {
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Content-Type": "application/octet-stream",
-            "Cookie": req.headers["x-access-token"],
-          },
-          method: "POST",
-          body: fileDataAsBlob.slice(from, from + CHUNK_SIZE),
-        }
-      )
+    const upload = await await fetch(
+      `https://dropmb.com/api/shares/${share.id}/files?name=${file.name}${
+        fileId ? `&id=${fileId}` : ""
+      }&chunkIndex=${chunkIndex}&totalChunks=${totalChunks}`,
+      {
+        credentials: "include",
+        headers: {
+          "Accept": "application/json, text/plain, */*",
+          "Accept-Language": "en-US,en;q=0.5",
+          "Content-Type": "application/octet-stream",
+          "Cookie": req.headers["x-access-token"] | "",
+        },
+        method: "POST",
+        body: fileDataAsBlob.slice(from, from + CHUNK_SIZE),
+      }
     );
 
     const uploadData = await upload.json();
 
     if (!upload.ok) {
       if (uploadData.error === "unexpected_chunk_index") {
-        console.log("chunk corrupted (or something), retrying chunk upload")
+        console.log("chunk corrupted (or something), retrying chunk upload");
         chunkIndex = uploadData.expectedChunkIndex - 1;
         continue;
       } else {
         console.log("failed to upload chunks! upload cancled");
-        return res.status(500).send(`uploading error: ${JSON.stringify(uploadData)} | ${JSON.stringify(share)}`);
+        return res
+          .status(500)
+          .send(`uploading error: ${JSON.stringify(uploadData)} | ${JSON.stringify(share)}`);
       }
     }
 
@@ -98,7 +97,7 @@ app.post("/upload", async (req, res) => {
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "en-US,en;q=0.5",
         "Content-Type": "application/octet-stream",
-        "Cookie": req.headers["x-access-token"],
+        "Cookie": req.headers["x-access-token"] || "",
       },
       method: "POST",
     })
@@ -106,6 +105,26 @@ app.post("/upload", async (req, res) => {
 
   const rawURL = `https://dropmb.com/api/shares/${share.id}/files/${fileId}?download=false`;
   console.log(`uploaded to ${rawURL}`);
+
+  if (req.headers["x-shortener"]) {
+    if (!req.headers["x-shortener-key"]) return res.status(400).send("shortener enabled without key");
+    const shortened = await (await fetch("https://api.e-z.host/shortener", {
+      headers: {
+        "Content-Type": "application/json",
+        "key": req.headers["x-shortener-key"],
+      },
+      method: "POST",
+      body: JSON.stringify({
+        url: rawURL,
+      }),
+    })).json();
+
+    if (req.headers["x-redir-domain"]) {
+      return res.status(200).send(`https://${req.headers["x-redir-domain"]}/${shortened.shortenedUrl.match(/\/([.-\dA-Za-z]+)$/)[1]}`);
+    }
+
+    return res.status(200).send(shortened.shortenedUrl);
+  }
 
   return res.status(200).send(rawURL);
 });
